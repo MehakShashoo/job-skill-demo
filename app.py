@@ -1,6 +1,9 @@
 import streamlit as st
 from PIL import Image
 import pytesseract
+from openai import OpenAI
+
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.title("Job Skill Extractor & Learning Roadmap")
 
@@ -16,28 +19,38 @@ elif input_type == "Image":
         image = Image.open(uploaded_file)
         job_desc = pytesseract.image_to_string(image)
 
+def extract_from_llm(text):
+    prompt = f"""
+    Extract the following from the job description:
+    1. List of skills/tools/frameworks mentioned
+    2. Categorize the skills into Programming, Tools, Databases, Soft Skills, etc.
+    3. Create a beginner-friendly learning roadmap for each skill with duration.
+
+    Return output in this JSON format:
+    {{
+      "skills": [...],
+      "categories": {{...}},
+      "roadmap": {{...}}
+    }}
+
+    Job Description:
+    {text}
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user", "content":prompt}],
+        temperature=0
+    )
+
+    return response.choices[0].message.content
+
 if st.button("Extract Skills"):
     if not job_desc:
         st.warning("Please provide a job description")
     else:
-        # Placeholder skills (replace later with NLP extraction)
-        skills = ["Python", "SQL", "Git"]
-        categories = {
-            "Programming": ["Python"],
-            "Database": ["SQL"],
-            "Tools": ["Git"]
-        }
-        roadmap = {
-            "Python": ["Learn basics - 1 week", "Build projects - 2 weeks"],
-            "SQL": ["Learn queries - 1 week", "Practice exercises - 3 days"],
-            "Git": ["Learn basics - 1 day", "Version control practice - 2 days"]
-        }
+        output = extract_from_llm(job_desc)
 
-        st.subheader("Extracted Skills")
-        st.write(skills)
+        st.subheader("AI Output")
+        st.write(output)
 
-        st.subheader("Categorized Skills")
-        st.write(categories)
-
-        st.subheader("Learning Roadmap")
-        st.write(roadmap)
